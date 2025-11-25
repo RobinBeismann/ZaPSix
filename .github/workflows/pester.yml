@@ -1,3 +1,4 @@
+# .github/workflows/pester.yml
 name: Pester Tests
 
 on:
@@ -22,4 +23,17 @@ jobs:
         run: |
           $ErrorActionPreference = 'Stop'
           Import-Module ./ZabbixApi.psm1 -Force
-          Invoke-Pester -Script './Tests' -EnableExit
+
+          # Find test files explicitly
+          $tests = Get-ChildItem -Path ./Tests -Filter *.Tests.ps1 -Recurse -ErrorAction SilentlyContinue
+
+          if (-not $tests -or $tests.Count -eq 0) {
+              Write-Host "No test files were found under ./Tests. Listing files for debugging:"
+              Get-ChildItem -Path . -Recurse | Where-Object { $_.FullName -like "*Tests*" } | Select-Object -First 200 | Format-Table -AutoSize
+              throw "No test files found. Ensure Tests/*.Tests.ps1 exists and was checked out by actions/checkout."
+          }
+
+          foreach ($t in $tests) {
+              Write-Host "Running tests in $($t.FullName)"
+              Invoke-Pester -Script $t.FullName -EnableExit
+          }
